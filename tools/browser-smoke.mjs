@@ -64,9 +64,8 @@ game.audio.music('boss_ceo');
 game.music.update(0.5);
 console.log('> audio: osciladores criados', dom.audioCalls.oscillators, '| buffers', dom.audioCalls.buffers);
 
-// ---- resize
+// ---- resize (o main.js registra o listener e reescala o canvas)
 dom.document.dispatch('resize', {});
-game.resize();
 
 // ---- checagens finais
 dom.flushRAF(60);

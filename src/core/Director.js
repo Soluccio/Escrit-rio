@@ -12,6 +12,10 @@ import { rollBlessings, BLESSING_BY_ID } from '../data/blessings.js';
 import { ITEMS } from '../data/items.js';
 import { CHARACTERS, sealsFromRun } from '../data/characters.js';
 import { BOSSES } from '../data/bosses.js';
+import {
+  offerBlessing, giveBossReward, onChestOpened, onEventTriggered,
+  onSecretFound, openShop, shopPrices,
+} from './Rewards.js';
 
 export class Director {
   constructor(game) { this.game = game; }
@@ -249,15 +253,8 @@ export class Director {
     }
   }
 
-  offerBlessing(reason, pool = null) {
-    const g = this.game;
-    const owned = g.player.stats.blessings.map(b => b.id);
-    g.blessingPicker.open(g.rng, owned, reason, (chosen) => {
-      if (chosen) g.player.addBlessing(chosen);
-      g.state = S.PLAY;
-    }, pool);
-    if (g.blessingPicker.active) g.state = S.BLESSING;
-  }
+  /** Delega para Rewards.js (arquivo do Director fica abaixo de 400 linhas). */
+  offerBlessing(reason, pool = null) { return offerBlessing(this, reason, pool); }
 
   onBossRoomCleared(room) {
     const g = this.game;
@@ -269,54 +266,6 @@ export class Director {
       g.fx.banner('ELEVADOR LIBERADO', '#7fe3d4', 2, 44);
     }
     this.giveBossReward(boss);
-  }
-
-  giveBossReward(boss) {
-    const g = this.game;
-    const id = boss.bossId;
-    const def = BOSSES[id];
-    g.save.markBossKill(id);
-    g.stats.minibossesKilled++;
-    const reward = def?.reward || {};
-    const p = g.player;
-    if (reward.key) {
-      g.stats.hasKey = true;
-      g.spawnPickup('key', boss.x, boss.y, {});
-      g.fx.banner('CHAVE DO ELEVADOR!', '#ffcf4d', 2.4, 44);
-    }
-    if (reward.badge) {
-      g.spawnPickup('badge', boss.x, boss.y, {});
-    }
-    if (reward.coffees) {
-      for (let i = 0; i < Math.min(8, reward.coffees); i++) {
-        g.spawnPickup('coffee', boss.x + g.rng.range(-20, 20), boss.y + g.rng.range(-20, 20), { life: Infinity });
-      }
-    }
-    if (reward.signedForm) g.spawnPickup('form', boss.x, boss.y, {});
-    if (reward.legendary) g.spawnPickup('drive', boss.x, boss.y, {});
-    if (reward.item) {
-      p.items = p.items || [p.activeItem];
-      if (p.items.length < p.stats.activeSlots) p.items.push(reward.item);
-      else p.items[p.items.length - 1] = reward.item;
-      p.activeItem = reward.item;
-      g.fx.banner(ITEMS[reward.item].name.toUpperCase() + ' EQUIPADO', '#7fe3d4', 2, 44);
-    }
-    if (reward.coins) {
-      for (let i = 0; i < Math.min(10, Math.round(reward.coins / 8)); i++) {
-        g.spawnPickup('coin', boss.x + g.rng.range(-24, 24), boss.y + g.rng.range(-24, 24), { amount: 8, life: Infinity });
-      }
-    }
-    // bencao garantida do mini-boss / boss
-    if (reward.blessings) this.offerBlessing('RECOMPENSA DO CHEFE');
-    if (reward.rareBlessing) {
-      const owned = p.stats.blessings.map(b => b.id);
-      const rare = rollBlessings(g.rng, 1, owned).map(b => b);
-      const rarePool = rollBlessings(g.rng, 1, owned, null);
-      this.offerBlessing('BENCAO RARA', rarePool);
-    }
-    g.fx.freezeFrame(0.5);
-    g.camera.addShake(7);
-    g.audio.sfx('bossHorn');
   }
 
   onBossDefeated(boss) {
@@ -333,83 +282,13 @@ export class Director {
   }
 
   // ---------------------------------------------------------------- interacoes
-  onChestOpened(inter) {
-    const g = this.game;
-    g.audio.sfx('secret');
-    g.fx.burst(inter.x, inter.y, 'gold', { count: 16, speedMult: 1.3 });
-    // item garantido: item ativo novo ou bencao
-    if (g.rng.chance(0.5)) {
-      const ids = Object.keys(ITEMS);
-      const id = g.rng.pick(ids);
-      const p = g.player;
-      p.items = p.items || [p.activeItem];
-      if (p.items.length < p.stats.activeSlots) p.items.push(id);
-      else p.items[p.items.length - 1] = id;
-      p.activeItem = id;
-      g.fx.banner(ITEMS[id].name.toUpperCase() + '!', '#7fe3d4', 2.2, 44);
-    } else {
-      this.offerBlessing('TESOURO');
-    }
-    g.dropLoot({ x: inter.x, y: inter.y, def: { coins: 3 } }, 0);
-  }
-
-  onEventTriggered(inter) {
-    const g = this.game;
-    const events = [
-      {
-        text: 'Colega fofoqueiro: "Cara, pega esse cafe... vai por mim."',
-        apply: () => { g.spawnPickup('coffee', inter.x, inter.y, {}); g.player.heal(1); },
-      },
-      {
-        text: 'Cafe da copa esta gratis. Voce enche a caneca.',
-        apply: () => { g.player.heal(1); },
-      },
-      {
-        text: 'Achou um cracha no chao. Ninguem sentiu falta.',
-        apply: () => { g.stats.coins += 15; g.fx.banner('+15 MOEDAS', '#ffd54f', 1.6, 44); },
-      },
-      {
-        text: 'A impressora imprimiu 40 paginas sozinha. Ninguem sabe de nada.',
-        apply: () => { this.offerBlessing('EVENTO: IMPRESSORA AMALDICOADA'); },
-      },
-      {
-        text: 'O RH deixou um formulario em branco. Assine e veja no que da.',
-        apply: () => { g.player.hp = Math.max(1, g.player.hp - 1); g.spawnPickup('heart', inter.x, inter.y + 16, {}); },
-      },
-    ];
-    const ev = g.rng.pick(events);
-    g.fx.banner('EVENTO', '#b39ddb', 1.4, 44);
-    g.dialogue.show('SALA DE ESPERA', ev.text, 3.4);
-    ev.apply();
-  }
-
-  onSecretFound(inter) {
-    const g = this.game;
-    g.fx.burst(inter.x, inter.y, 'gold', { count: 24, speedMult: 1.5 });
-    g.audio.sfx('secret');
-    g.stats.coins += 40;
-    g.fx.banner('ARQUIVO MORTO: +40 MOEDAS', '#ffd54f', 2.2, 44);
-    const owned = g.player.stats.blessings.map(b => b.id);
-    const options = rollBlessings(g.rng, 3, owned);
-    g.spawnPickup('heart', inter.x - 18, inter.y, {});
-    g.spawnPickup('coffee', inter.x + 18, inter.y, {});
-    this.offerBlessing('RECOMPENSA SECRETA');
-  }
-
-  openShop(inter) {
-    const g = this.game;
-    g.shop.open(g, inter);
-    g.state = S.SHOP;
-  }
-
-  shopPrices() {
-    const g = this.game;
-    return {
-      weapon: 18 + g.floorN * 4 + g.rng.int(-2, 3),
-      blessing: 22 + g.floorN * 5,
-      heal: 10 + g.floorN * 2,
-    };
-  }
+  // ------------------------------------------------- interacoes (Rewards.js)
+  giveBossReward(boss) { return giveBossReward(this, boss); }
+  onChestOpened(inter) { return onChestOpened(this, inter); }
+  onEventTriggered(inter) { return onEventTriggered(this, inter); }
+  onSecretFound(inter) { return onSecretFound(this, inter); }
+  openShop(inter) { return openShop(this, inter); }
+  shopPrices() { return shopPrices(this); }
 
   // ---------------------------------------------------------------- fim
   nextFloor() {

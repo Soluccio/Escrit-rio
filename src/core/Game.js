@@ -3,7 +3,7 @@
  * (MENU, PLAY, PAUSE, BLESSING, SHOP, TRANSITION, GAMEOVER, WIN), sistema de
  * salas, spawn de entidades, efeitos e o render de tudo.
  */
-import { VIEW_W, VIEW_H, TUNING, S, FLOORS, floorScale, SOLID_TILES, T } from '../data/constants.js';
+import { VIEW_W, VIEW_H, TUNING, S, FLOORS, floorScale, SOLID_TILES } from '../data/constants.js';
 import { GameLoop } from './GameLoop.js';
 import { Camera } from './Camera.js';
 import { FX } from './FX.js';
@@ -31,11 +31,9 @@ import { Transitions } from '../ui/Transitions.js';
 import { TouchControls } from '../ui/TouchControls.js';
 import { Player } from '../entities/Player.js';
 import { ProjectileSystem } from '../entities/Projectile.js';
-import { Pickup, rollDrops } from '../entities/Pickup.js';
+import { rollDrops } from '../entities/Pickup.js';
 import { HazardSystem } from '../world/Hazard.js';
-import { ENEMY_CLASSES } from '../entities/enemies/index.js';
-import { BOSS_CLASSES } from '../entities/bosses/index.js';
-import { scaleEnemy } from '../data/enemies.js';
+import { spawnEnemy, spawnBoss, spawnPickup, scaledEnemyDef } from './Spawner.js';
 import { dist } from './Physics.js';
 import {
   meleeSwing, beamAttack, chainAttack, addInkTrail,
@@ -328,71 +326,27 @@ export class Game {
   }
 
   /** Spawn de inimigo comum a partir dos dados do andar. */
-  spawnEnemy(key, x, y, opts = {}) {
-    const def = this.scaledEnemyDef(key);
-    const Cls = ENEMY_CLASSES[key] || ENEMY_CLASSES.papel;
-    let enemy;
-    if (key === 'formulario') {
-      // formularios passam a geracao para as copias ficarem mais fracas
-      const Formulario = ENEMY_CLASSES.formulario;
-      enemy = new Formulario(x, y, def, opts.generation || 0);
-    } else {
-      enemy = new Cls(x, y, def);
-    }
-    enemy.hp = enemy.maxHp = opts.hp ?? def.hp;
-    this.room.entities.push(enemy);
-    this.fx.ring(x, y, 2, 12, '#ff8fa3', 0.25, 1);
-    return enemy;
-  }
-
-  scaledEnemyDef(key) {
-    const scale = this.floorScale || floorScale(this.floorN);
-    return scaleEnemy(key, scale);
-  }
-
+  // ---- fabricas de entidades (implementacao em Spawner.js)
+  spawnEnemy(key, x, y, opts) { return spawnEnemy(this, key, x, y, opts); }
+  scaledEnemyDef(key) { return scaledEnemyDef(this, key); }
   spawnProjectile(o) { return this.projectiles.spawn(o); }
   spawnHazard(kind, x, y, opts) { return this.hazards.spawn(kind, x, y, opts); }
-  spawnPickup(kind, x, y, opts = {}) {
-    const p = new Pickup(kind, x, y, opts);
-    this.pickups.push(p);
-    return p;
-  }
+  spawnPickup(kind, x, y, opts) { return spawnPickup(this, kind, x, y, opts); }
   dropLoot(enemy, coinBonus = 0) { return rollDrops(this, enemy, coinBonus); }
+  spawnBoss(type, player) { return spawnBoss(this, type, player); }
 
-  spawnBoss(type, player) {
-    const bossKey = type === true || type === 'boss' ? 'ceo' : (type === 'miniboss' ? undefined : type);
-    const id = this.floorData.boss;
-    const Cls = BOSS_CLASSES[id];
-    if (!Cls) return null;
-    const x = this.room.w / 2, y = this.room.h * 0.32;
-    // chefes NAO usam a escala cheia do andar: o HP de cada um ja foi
-    // balanceado para o proprio andar (senao o CEO virava um saco de pancadas)
-    const bossScale = { hp: 1, damage: 1, speed: 1, coins: 1 };
-    const boss = new Cls(x, y, bossScale);
-    boss.game = this;
-    this.room.entities.push(boss);
-    this.room.boss = boss;
-    this.boss = boss;
-    boss.start(this);
-    this.camera.targetZoom = 0.85;
-    // props destrutiveis da arena com mais vida
-    for (const prop of this.room.props) prop.hp *= 1.4;
-    return boss;
-  }
-
-  // ================================================================ combate helpers
   /** Golpe corpo a corpo em arco (regua). */
   /** Desenha um frame (delega ao WorldRenderer). */
   draw() { drawGame(this, this.ctx); }
 
   // --- API publica usada por entidades/itens (implementacao em Weapons.js) ---
-  meleeSwing(source, x, y, len, arc, dmg, ang, kb) { return meleeSwing(this, source, x, y, len, arc, dmg, ang, kb); }
-  beamAttack(source, ang, len, width, dmg) { return beamAttack(this, source, ang, len, width, dmg); }
-  chainAttack(source, range, jumps, dmg, stun, ang) { return chainAttack(this, source, range, jumps, dmg, stun, ang); }
+  meleeSwing(s, x, y, len, arc, dmg, ang, kb) { return meleeSwing(this, s, x, y, len, arc, dmg, ang, kb); }
+  beamAttack(s, ang, len, w, dmg) { return beamAttack(this, s, ang, len, w, dmg); }
+  chainAttack(s, range, jumps, dmg, stun, ang) { return chainAttack(this, s, range, jumps, dmg, stun, ang); }
   addInkTrail(x, y) { return addInkTrail(this, x, y); }
-  damageSecretWall(x, y, dmg) { return damageSecretWall(this, x, y, dmg); }
-  nearestProp(x, y, maxDist) { return nearestProp(this, x, y, maxDist); }
-  nearestExecutable(x, y, maxDist) { return nearestExecutable(this, x, y, maxDist); }
+  damageSecretWall(x, y, d) { return damageSecretWall(this, x, y, d); }
+  nearestProp(x, y, maxD) { return nearestProp(this, x, y, maxD); }
+  nearestExecutable(x, y, maxD) { return nearestExecutable(this, x, y, maxD); }
   findInteractable(x, y) { return findInteractable(this, x, y); }
 
   /** Usa um interativo (bau, cafeteira, elevador...). */
@@ -402,15 +356,7 @@ export class Game {
     return true;
   }
 
-  /** Redimensiona o canvas mantendo o aspecto (pixel art). */
-  resize() {
-    if (!this.canvas) return;
-    const scale = Math.max(1, Math.floor(Math.min(
-      innerWidth / VIEW_W, innerHeight / VIEW_H,
-    )));
-    this.canvas.style.width = VIEW_W * scale + 'px';
-    this.canvas.style.height = VIEW_H * scale + 'px';
-  }
 }
+
 
 export { SOLID_TILES, TUNING };

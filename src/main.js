@@ -3,6 +3,7 @@
  * listeners de resize/audio e comeca o loop de 60 FPS.
  */
 import { Game } from './core/Game.js';
+import { fitCanvas } from './ui/Viewport.js';
 import { VIEW_W, VIEW_H } from './data/constants.js';
 
 function boot() {
@@ -15,14 +16,8 @@ function boot() {
   const game = new Game({ canvas, ctx, touchContainer: document.getElementById('touch') });
   window.game = game;   // debug no console
 
-  const resize = () => {
-    const scale = Math.max(1, Math.min(
-      (innerWidth - 8) / VIEW_W, (innerHeight - 8) / VIEW_H,
-    ));
-    const rounded = Math.floor(scale * 2) / 2;   // meios passos para encaixar melhor
-    canvas.style.width = Math.floor(VIEW_W * rounded) + 'px';
-    canvas.style.height = Math.floor(VIEW_H * rounded) + 'px';
-  };
+  // escala inteira: pixel art nitido em qualquer monitor
+  const resize = () => fitCanvas(canvas);
   addEventListener('resize', resize);
   resize();
 
