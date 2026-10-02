@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Pilha de Papel — Roguelike Corporativo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #0b0b14;
+    font-family: ui-monospace, "Courier New", monospace; color: #e8e8f0;
+    -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas#game {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #1a1a2e;
+    box-shadow: 0 0 0 2px #0b0b14, 0 0 40px #000a;
+    max-width: 100%; max-height: 100%;
+  }
+  /* Overlay de controles de toque (criado pelo TouchControls.js) */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #touch .stick { position: absolute; bottom: 18px; width: 116px; height: 116px; border-radius: 50%;
+    border: 2px solid #ffffff33; background: #ffffff11; pointer-events: auto; }
+  #touch .stick.left { left: 18px; }
+  #touch .stick.right { right: 18px; }
+  #touch .knob { position: absolute; width: 46px; height: 46px; border-radius: 50%;
+    background: #ffffff44; left: 35px; top: 35px; }
+  #touch .btn { position: absolute; border-radius: 50%; border: 2px solid #ffffff33; background: #ffffff18;
+    pointer-events: auto; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  #touch .btn.fire { right: 150px; bottom: 92px; width: 68px; height: 68px; }
+  #touch .btn.dash { right: 30px; bottom: 152px; width: 56px; height: 56px; }
+  #touch .btn.act  { right: 152px; bottom: 22px; width: 56px; height: 56px; }
+  #touch .btn.pause { right: 12px; top: 12px; width: 40px; height: 40px; }
+  #touch .hidden { display: none; }
+</style>
+</head>
+<body>
+  <div id="wrap"><canvas id="game" width="480" height="270"></canvas></div>
+  <div id="touch"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
