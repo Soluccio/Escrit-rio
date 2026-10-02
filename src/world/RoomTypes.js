@@ -42,8 +42,9 @@ export const ROOM_TYPES = {
     desc: 'Maquina de cafe: cura completa uma vez por andar.',
     props: (map, rng, floor) => {
       const p = decorateRoom(map, rng, floor, 'rest');
-      p.push(new Prop('coffeemaker', map.w / 2, TILE * 3 + 12));
-      p.push(new Prop('watercooler', TILE * 4, TILE * 4 + 10));
+      // fora do corredor central das portas (a sala continua atravessavel)
+      p.push(new Prop('coffeemaker', map.w / 2 - 96, TILE * 3 + 12));
+      p.push(new Prop('watercooler', map.w / 2 + 96, TILE * 3 + 10));
       return p;
     },
   },
@@ -77,7 +78,8 @@ export const ROOM_TYPES = {
     desc: 'A arena final. Porta selada ate derrotar o CEO.',
     props: (map, rng, floor) => {
       const p = [];
-      p.push(new Prop('projector', map.w / 2, TILE * 3));
+      // projetor fora do eixo das portas (o CEO orbita a mesa no centro)
+      p.push(new Prop('projector', map.w / 2 - 64, TILE * 3));
       p.push(new Prop('speaker', TILE * 4, TILE * 4 + 8));
       p.push(new Prop('speaker', map.w - TILE * 4, TILE * 4 + 8));
       p.push(new Prop('plant', TILE * 4, map.h - TILE * 4));

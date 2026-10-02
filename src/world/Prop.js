@@ -121,11 +121,12 @@ export function decorateRoom(map, rng, floorN, kind = 'combat') {
     6: ['desk', 'chair', 'speaker', 'plant', 'frame'],
   }[floorN] || ['desk', 'chair', 'plant'];
 
-  const baseCount = { combat: 9, treasure: 4, shop: 3, rest: 4, event: 4, secret: 4, miniboss: 5, boss: 3, spawn: 5 }[kind] ?? 6;
-  const count = baseCount + rng.int(0, 3);
+  const baseCount = { combat: 12, treasure: 7, shop: 5, rest: 6, event: 6, secret: 6, miniboss: 6, boss: 4, spawn: 8 }[kind] ?? 8;
+  const count = baseCount + rng.int(0, 4);
   const midX = map.w / 2, midY = map.h / 2;
   const used = [];
-  for (let i = 0; i < count; i++) {
+  // varias tentativas: muitas posicoes sao descartadas por obstruir corredores
+  for (let i = 0; i < count * 4 && props.length < count; i++) {
     const kindPick = rng.pick(themeProps);
     const cx = rng.int(3, map.cols - 4), cy = rng.int(3, map.rows - 4);
     const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
@@ -134,9 +135,10 @@ export function decorateRoom(map, rng, floorN, kind = 'combat') {
     if (map.solidCountIn(x - 24, y - 24, 48, 48) > 0) continue;
     const w = PROP_DEFS[kindPick].w, h = PROP_DEFS[kindPick].h;
     if (used.some(u => Math.abs(u.x - x) < 34 && Math.abs(u.y - y) < 26)) continue;
-    // mantem os corredores das portas livres (faixa central)
-    const onDoorLane = (Math.abs(x - midX) < 22) || (Math.abs(y - midY) < 22);
-    if (onDoorLane && rng.chance(0.7)) continue;
+    // NUNCA bloqueia o corredor das portas: a faixa central da sala (cruz) fica
+    // sempre livre para o player e os inimigos atravessarem de sala
+    const onDoorLane = (Math.abs(x - midX) < 30) || (Math.abs(y - midY) < 30);
+    if (onDoorLane) continue;
     used.push({ x, y });
     props.push(new Prop(kindPick, x, y, { hpScale: 1 + (floorN - 1) * 0.2 }));
     // mesa ganha uma cadeira companheira

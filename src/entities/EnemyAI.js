@@ -14,7 +14,7 @@
  */
 import { STATE } from './EnemyState.js';
 import { ENEMY, TILE, TUNING } from '../data/constants.js';
-import { dist, hasLOS, moveWithTiles, lerp } from '../core/Physics.js';
+import { dist, hasLOS, moveWithTiles, moveWithSolids, lerp } from '../core/Physics.js';
 
 /** menor diferenca entre dois angulos (radianos). */
 function angleDiff(a, b) {
@@ -264,6 +264,13 @@ export function moveTowards(e, game, target, speed, dt) {
     const dir = game.flow.directionAt(e.x, e.y, game.player.x, game.player.y);
     if (dir && (Math.abs(dir.x) + Math.abs(dir.y) > 0.1)) { nx = dir.x; ny = dir.y; }
   }
+  // contornar obstaculo: roda a direcao desejada (wall-follow simples)
+  if (e.blockedTimer > 0) {
+    const side = (e.id % 2 === 0 ? 1 : -1) * 0.9;
+    const cx = nx * Math.cos(side) - ny * Math.sin(side);
+    const cy = nx * Math.sin(side) + ny * Math.cos(side);
+    nx = cx; ny = cy;
+  }
   // bugs correm em zigue-zague
   if (e.def.zigzag) {
     const wob = Math.sin(e.time * 9 + e.id) * 0.5;
@@ -284,9 +291,12 @@ export function moveTowards(e, game, target, speed, dt) {
 export function applyMovement(e, dt, game) {
   const map = game.room.map;
   const kb = e.integrateKnockback(dt);
-  const hit = moveWithTiles(e, (e.vx + kb.x) * dt, (e.vy + kb.y) * dt, map);
+  const hit = moveWithSolids(e, (e.vx + kb.x) * dt, (e.vy + kb.y) * dt, map, game.room.props);
   if (hit.x) e.vx = 0;
   if (hit.y) e.vy = 0;
+  // travou em parede/movel: entra em "contornar obstaculo" por um instante
+  if (hit.x || hit.y) e.blockedTimer = 0.4;
+  else if (e.blockedTimer > 0) e.blockedTimer -= dt;
   // atrito so quando nenhum estado esta dirigindo (senao o inimigo nunca
   // alcanca a velocidade maxima definida nos dados)
   if (!e.steered) {

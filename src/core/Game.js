@@ -37,6 +37,11 @@ import { ENEMY_CLASSES } from '../entities/enemies/index.js';
 import { BOSS_CLASSES } from '../entities/bosses/index.js';
 import { scaleEnemy } from '../data/enemies.js';
 import { dist } from './Physics.js';
+import {
+  meleeSwing, beamAttack, chainAttack, addInkTrail,
+  damageSecretWall, nearestProp, nearestExecutable, findInteractable,
+} from './Weapons.js';
+import { drawGame } from './WorldRenderer.js';
 
 export class Game {
   constructor(opts = {}) {
@@ -377,228 +382,24 @@ export class Game {
 
   // ================================================================ combate helpers
   /** Golpe corpo a corpo em arco (regua). */
-  meleeSwing(source, x, y, length, arc, damage, angle, knockback = 200) {
-    for (const e of this.room.entities) {
-      if (e.dead || !e.isEnemy) continue;
-      const d = dist({ x, y }, e);
-      if (d > length + e.radius) continue;
-      const a = Math.atan2(e.y - y, e.x - x);
-      let diff = Math.abs(a - angle);
-      while (diff > Math.PI) diff = Math.abs(diff - Math.PI * 2);
-      if (diff <= arc) {
-        this.combat.hitEnemy(e, damage, { fromX: x, fromY: y, knockback });
-      }
-    }
-    for (const prop of this.room.props) {
-      if (prop.destructible && !prop.broken && prop.hitsCircle(x, y, length * 0.6)) {
-        this.combat.hitProp(prop, damage);
-      }
-    }
-    this.audio.sfx('staple');
-  }
+  /** Desenha um frame (delega ao WorldRenderer). */
+  draw() { drawGame(this, this.ctx); }
 
-  /** Feixe que atravessa (marca-texto). */
-  beamAttack(source, angle, length, width, damage) {
-    const steps = Math.ceil(length / 8);
-    for (let i = 1; i <= steps; i++) {
-      const x = source.x + Math.cos(angle) * (i * 8);
-      const y = source.y + Math.sin(angle) * (i * 8);
-      if (this.room.map.isSolidAt(x, y)) break;
-      this.fx.burst(x, y, 'ink', { count: 1, size: 2, speedMult: 0.4 });
-      for (const e of this.room.entities) {
-        if (e.dead || !e.isEnemy) continue;
-        if (Math.abs(e.x - x) < width + e.radius && Math.abs(e.y - y) < width + e.radius) {
-          this.combat.hitEnemy(e, damage, { fromX: source.x, fromY: source.y, angle });
-        }
-      }
-    }
-  }
+  // --- API publica usada por entidades/itens (implementacao em Weapons.js) ---
+  meleeSwing(source, x, y, len, arc, dmg, ang, kb) { return meleeSwing(this, source, x, y, len, arc, dmg, ang, kb); }
+  beamAttack(source, ang, len, width, dmg) { return beamAttack(this, source, ang, len, width, dmg); }
+  chainAttack(source, range, jumps, dmg, stun, ang) { return chainAttack(this, source, range, jumps, dmg, stun, ang); }
+  addInkTrail(x, y) { return addInkTrail(this, x, y); }
+  damageSecretWall(x, y, dmg) { return damageSecretWall(this, x, y, dmg); }
+  nearestProp(x, y, maxDist) { return nearestProp(this, x, y, maxDist); }
+  nearestExecutable(x, y, maxDist) { return nearestExecutable(this, x, y, maxDist); }
+  findInteractable(x, y) { return findInteractable(this, x, y); }
 
-  /** Raio em cadeia (cabo HDMI). */
-  chainAttack(source, range, jumps, damage, stun, angle) {
-    let from = source;
-    let remaining = jumps;
-    const hit = new Set();
-    while (remaining-- > 0) {
-      let best = null, bestD = range;
-      for (const e of this.room.entities) {
-        if (e.dead || !e.isEnemy || hit.has(e.id)) continue;
-        const d = dist(from, e);
-        if (d < bestD) { bestD = d; best = e; }
-      }
-      if (!best) break;
-      hit.add(best.id);
-      this.fx.burst(best.x, best.y, 'spark', { count: 6 });
-      this.fx.ring(best.x, best.y, 2, 14, '#00e676', 0.2, 1);
-      this.combat.hitEnemy(best, damage, { stun, fromX: from.x, fromY: from.y });
-      from = best;
-    }
-    if (!hit.size) this.audio.sfx('click', { pitch: 0.5 });
-  }
-
-  /** Rastro de tinta (bencao Marca-texto). */
-  addInkTrail(x, y) {
-    const p = this.player;
-    this.hazards.spawn('ink', x, y, {
-      radius: 10, damage: p.stats.trailDamage, life: 2.5, from: null,
-    });
-  }
-
-  /** Dano na parede secreta (retorna true se quebrou/atingiu). */
-  damageSecretWall(x, y, damage) {
-    const map = this.room.map;
-    const cx = Math.floor(x / 16), cy = Math.floor(y / 16);
-    if (map.get(cx, cy) !== T.SECRET) return false;
-    this.room.secretHp = (this.room.secretHp || 0) + damage;
-    this.fx.burst(x, y, 'dust', { count: 5 });
-    this.audio.sfx('stamp', { pitch: 0.8, volume: 0.2 });
-    if (this.room.secretHp >= 6) {
-      this.director.breakSecretWall(this.room, cx, cy);
-    }
-    return true;
-  }
-
-  nearestProp(x, y, maxDist) {
-    let best = null, bestD = maxDist;
-    for (const p of this.room.props) {
-      if (p.dead) continue;
-      const d = dist({ x, y }, p);
-      if (d < bestD) { bestD = d; best = p; }
-    }
-    return best;
-  }
-
-  nearestExecutable(x, y, maxDist) {
-    let best = null, bestD = maxDist;
-    for (const e of this.room.entities) {
-      if (e.dead || !e.isEnemy || !e.executable) continue;
-      const d = dist({ x, y }, e);
-      if (d < bestD) { bestD = d; best = e; }
-    }
-    return best;
-  }
-
-  findInteractable(x, y) {
-    for (const inter of this.room.interactables || []) {
-      if (inter.used && inter.kind !== 'elevator' && inter.kind !== 'shop') continue;
-      if (dist({ x, y }, inter) < inter.radius + 8) return inter;
-    }
-    return null;
-  }
-
+  /** Usa um interativo (bau, cafeteira, elevador...). */
   useInteractable(inter) {
-    if (inter.kind === 'shop') { this.director.openShop(inter); return true; }
-    const ok = inter.interact(this);
-    if (ok && this.player) { /* feedback */ }
-    return ok;
-  }
-
-  // ================================================================ render
-  draw() {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#0b0b14';
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-
-    if (this.state === S.MENU) {
-      this.menu.draw(ctx, this);
-      this.transitions.draw(ctx, this);
-      return;
-    }
-    if (this.state === S.WIN) {
-      this.victory.draw(ctx, this);
-      this.transitions.draw(ctx, this);
-      return;
-    }
-    if (this.state === S.GAMEOVER) {
-      this.gameover.draw(ctx, this);
-      this.transitions.draw(ctx, this);
-      return;
-    }
-    if (!this.room || !this.player) {
-      this.transitions.draw(ctx, this);
-      return;
-    }
-
-    // ---- mundo
-    this.camera.apply(ctx);
-    const view = this.camera.view();
-    this.room.draw(ctx, this.sprites, this.time, view);
-    this.hazards.draw(ctx);
-    for (const p of this.pickups) p.draw(ctx, this.sprites);
-    for (const inter of this.room.interactables || []) {
-      const near = dist(inter, this.player) < inter.radius + 14;
-      inter.draw(ctx, this.sprites, this.font, near);
-    }
-    this.drawEntities(ctx);
-    this.projectiles.draw(ctx);
-    this.fx.drawWorld(ctx, this.sprites);
-    this.drawExecuteHint(ctx);
-    if (this.debug) this.room.map.debugDraw(ctx);
-    this.camera.restore(ctx);
-
-    // ---- flash de dano / reboot
-    if (this.shakeFlash > 0) {
-      ctx.fillStyle = `rgba(255,60,60,${this.shakeFlash * 0.35})`;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    }
-    if (this.rebootFlash > 0) {
-      ctx.fillStyle = `rgba(10,20,10,${Math.min(0.9, this.rebootFlash * 2)})`;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      this.font.draw(ctx, 'REBOOT', VIEW_W / 2, VIEW_H / 2 - 10, '#00e676', 2, 'center');
-    }
-    // vinheta
-    this.drawVignette(ctx);
-
-    // ---- UI (coordenadas de tela)
-    ctx.save();
-    this.camera.apply(ctx);
-    this.fx.drawNumbers(ctx, this.font, this.camera);
-    ctx.restore();
-    this.hud.draw(ctx, this, this.loop.dt || 1 / 60);
-    this.minimap.draw(ctx, this);
-    this.dialogue.draw(ctx);
-    this.fx.drawBanners(ctx, this.font);
-
-    if (this.state === S.BLESSING) this.blessingPicker.draw(ctx, this);
-    if (this.state === S.SHOP) this.shop.draw(ctx, this);
-    if (this.state === S.PAUSE) this.pauseUI.draw(ctx, this);
-    this.transitions.draw(ctx, this);
-  }
-
-  /** Prompt de EXECUTAR sobre o inimigo com a postura cheia (coords de mundo). */
-  drawExecuteHint(ctx) {
-    const target = this.nearestExecutable(this.player.x, this.player.y, 110);
-    if (!target) return;
-    ctx.save();
-    ctx.globalAlpha = 0.7 + Math.sin(this.time * 12) * 0.3;
-    this.font.draw(ctx, 'EXECUTAR [E]', target.x, target.y - 26, '#ff5252', 1, 'center', '#000000');
-    ctx.restore();
-  }
-
-  /** Desenha props + entidades com ordenacao por Y (profundidade). */
-  drawEntities(ctx) {
-    const room = this.room;
-    const sortable = [];
-    for (const p of room.props) if (!p.dead) sortable.push({ y: p.y, kind: 'prop', ref: p });
-    for (const e of room.entities) if (!e.dead) sortable.push({ y: e.y, kind: 'entity', ref: e });
-    if (this.player && !this.player.dead) sortable.push({ y: this.player.y, kind: 'player', ref: this.player });
-    sortable.sort((a, b) => a.y - b.y);
-    for (const item of sortable) {
-      if (item.kind === 'prop') item.ref.draw(ctx, this.sprites);
-      else if (item.kind === 'player') item.ref.draw(ctx, this.sprites, this);
-      else item.ref.draw(ctx, this.sprites, this);
-    }
-  }
-
-  drawVignette(ctx) {
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#0b0b14';
-    ctx.fillRect(0, 0, VIEW_W, 3);
-    ctx.fillRect(0, VIEW_H - 3, VIEW_W, 3);
-    ctx.restore();
+    if (!inter || inter.used) return false;
+    inter.interact(this);
+    return true;
   }
 
   /** Redimensiona o canvas mantendo o aspecto (pixel art). */

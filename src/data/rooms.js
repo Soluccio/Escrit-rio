@@ -30,7 +30,8 @@ export const ROOM_WEIGHTS = {
 /** Ondas de inimigos por sala de combate: quantidade conforme andar. */
 export function waveConfig(floor, roomRng) {
   const waves = roomRng.int(1, floor >= 4 ? 3 : 2);
-  const perWave = 2 + Math.floor(floor / 2) + roomRng.int(0, 2);
+  // 2-3 inimigos por onda no andar 1, ate 4-5 no andar 6 (player tem 3 coracoes)
+  const perWave = 2 + Math.floor((floor - 1) / 2) + roomRng.int(0, 1);
   return { waves, perWave };
 }
 

@@ -125,7 +125,7 @@ export const FLOORS = [
 export function floorScale(n) {
   return {
     hp: 1 + 0.28 * (n - 1),
-    damage: 1 + Math.floor((n - 1) / 2),   // +1 de dano a cada 2 andares
+    damage: 1 + Math.floor((n - 1) / 3),   // +1 de dano a cada 3 andares (teto: base+1)
     speed: 1 + 0.06 * (n - 1),
     coins: 1 + 0.15 * (n - 1),
   };

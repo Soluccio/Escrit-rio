@@ -7,7 +7,7 @@
 import { Entity } from './Entity.js';
 import { playerFire, playerUseSecondary } from './PlayerAttacks.js';
 import { PLAYER, TILE, TUNING } from '../data/constants.js';
-import { clamp, lerp, moveWithTiles, dist } from '../core/Physics.js';
+import { clamp, lerp, moveWithTiles, moveWithSolids, dist } from '../core/Physics.js';
 import { CHAR_BY_ID } from '../data/characters.js';
 import { ITEMS } from '../data/items.js';
 import { startingItem } from '../data/items.js';
@@ -220,7 +220,7 @@ export class Player extends Entity {
     if (this.dashing) {
       this.dashTime -= dt;
       const spd = PLAYER.dashSpeed * (this.stats.speed / PLAYER.speed) * speedMult;
-      const moved = moveWithTiles(this, this.dashDir.x * spd * dt, this.dashDir.y * spd * dt, map);
+      const moved = moveWithSolids(this, this.dashDir.x * spd * dt, this.dashDir.y * spd * dt, map, game.room.props);
       this.wallSlide = moved;
       // rastro de fantasmas
       this.dashGhostTimer -= dt;
@@ -250,7 +250,7 @@ export class Player extends Entity {
       let dx = this.vx * dt, dy = this.vy * dt;
       const kb = this.integrateKnockback(dt);
       dx += kb.x; dy += kb.y;
-      const moved = moveWithTiles(this, dx, dy, map);
+      const moved = moveWithSolids(this, dx, dy, map, game.room.props);
       this.wallSlide = moved;
       if (moved.x) this.vx *= -0.1;
       if (moved.y) this.vy *= -0.1;

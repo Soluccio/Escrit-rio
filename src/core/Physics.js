@@ -59,6 +59,46 @@ export function moveWithTiles(e, dx, dy, map) {
   return hit;
 }
 
+/**
+ * Colisao por eixo contra tiles solidos E props solidos (mesas, servidores,
+ * impressoras, maquinas). Props solidos servem de cobertura no combate.
+ * Funciona igual a moveWithTiles (com deslize de ate 2px nas paredes).
+ */
+export function moveWithSolids(e, dx, dy, map, props = null) {
+  const hit = { x: false, y: false };
+  const blocked = (nx, ny) => {
+    if (map.boxHitsSolid(nx - e.w / 2, ny - e.h / 2, e.w, e.h)) return true;
+    if (!props) return false;
+    for (let i = 0; i < props.length; i++) {
+      const p = props[i];
+      if (p.dead || p.broken || !p.solid) continue;
+      if (Math.abs(nx - p.x) < (e.w + p.w) * 0.5 - 1 && Math.abs(ny - p.y) < (e.h + p.h) * 0.5 - 1) return true;
+    }
+    return false;
+  };
+  if (dx) {
+    if (!blocked(e.x + dx, e.y)) e.x += dx;
+    else {
+      const step = Math.sign(dx);
+      for (let i = 1; i <= 2; i++) {
+        if (!blocked(e.x + step * i, e.y)) { e.x += step * i; break; }
+      }
+      hit.x = true;
+    }
+  }
+  if (dy) {
+    if (!blocked(e.x, e.y + dy)) e.y += dy;
+    else {
+      const step = Math.sign(dy);
+      for (let i = 1; i <= 2; i++) {
+        if (!blocked(e.x, e.y + step * i)) { e.y += step * i; break; }
+      }
+      hit.y = true;
+    }
+  }
+  return hit;
+}
+
 /** Aplica velocidade com aceleracao, atrito e colisao. */
 export function integrate(e, dt, map, opts = {}) {
   const accel = opts.accel ?? 800, friction = opts.friction ?? 900, maxSpeed = opts.maxSpeed ?? 120;

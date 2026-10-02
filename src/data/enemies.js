@@ -70,7 +70,8 @@ export function scaleEnemy(key, scale) {
   return {
     ...base, key,
     hp: Math.round(base.hp * scale.hp),
-    dmg: base.dmg + scale.damage - 1,
+    // teto de +1: com 3 coracoes, levar 3 de dano de um inimigo comum seria morte instantanea
+    dmg: Math.min(base.dmg + scale.damage - 1, base.dmg + 1),
     speed: base.speed * scale.speed,
   };
 }

@@ -5,11 +5,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHeadlessGame, startRun, runFrames } from '../tools/headless.mjs';
+import * as roomGen from '../src/world/RoomGenerator.js';
 import { Save, memoryStorage } from '../src/core/Save.js';
 import { Camera } from '../src/core/Camera.js';
 import { FX } from '../src/core/FX.js';
 import { RNG } from '../src/core/RNG.js';
-import { hasLOS, moveWithTiles, separate } from '../src/core/Physics.js';
+import { hasLOS, moveWithTiles, moveWithSolids, separate } from '../src/core/Physics.js';
 import { TileMap } from '../src/world/TileMap.js';
 import { Prop, PROP_DEFS } from '../src/world/Prop.js';
 import { ITEMS, ITEM_IDS } from '../src/data/items.js';
@@ -87,6 +88,40 @@ test('props destrutiveis quebram e soltam drop', () => {
   assert.ok(prop.broken);
   assert.equal(prop.drops, 'toner');
   assert.ok(PROP_DEFS.desk.solid && PROP_DEFS.desk.destructible);
+});
+
+test('props solidos bloqueiam o movimento (cobertura)', () => {
+  const { game } = createHeadlessGame({ seed: 21 });
+  startRun(game, 21, 'max');
+  const room = game.floor.list.find(r => r.type === 'combat');
+  game.director.enterRoom(room, null, true);
+  const p = game.player;
+  const desk = room.props.find(x => x.solid && !x.dead);
+  assert.ok(desk, 'sala de combate tem movel solido');
+  // coloca o player a esquerda da mesa e empurra para dentro dela
+  p.x = desk.x - desk.w / 2 - p.w / 2 - 1;
+  p.y = desk.y;
+  for (let i = 0; i < 30; i++) moveWithSolids(p, 2, 0, room.map, room.props);
+  assert.ok(p.x < desk.x - desk.w / 2, 'nao atravessou a mesa (x=' + p.x.toFixed(1) + ')');
+});
+
+test('corredor das portas nunca e bloqueado por props (toda sala e atravessavel)', () => {
+  const { generateFloor } = roomGen;
+  for (const seed of [1, 7, 42, 1234, 9999]) {
+    const floor = generateFloor(2, seed);
+    for (const room of floor.list) {
+      {
+        room.map.buildBox('floor', room.rng);   // tiles (sem prerender: nao precisa de sprites)
+        room.props = room.def.props ? room.def.props(room.map, room.rng, room.floorN) : [];
+        const mx = room.w / 2, my = room.h / 2;
+        for (const p of room.props) {
+          if (!p.solid) continue;
+          const blocksLane = Math.abs(p.x - mx) < 30 - p.w / 2 || Math.abs(p.y - my) < 30 - p.h / 2;
+          assert.ok(!blocksLane, `prop ${p.kind} bloqueando o corredor da porta em ${room.gx},${room.gy}`);
+        }
+      }
+    }
+  }
 });
 
 test('hazards causam dano no player e expiram', () => {
