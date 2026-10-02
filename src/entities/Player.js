@@ -307,6 +307,12 @@ export class Player extends Entity {
     this.shadowOffset = 0;
   }
 
+  /** Ataque primario publico (tambem usado por bencaos e cutscenes). */
+  fire(game) { playerFire(this, game); }
+
+  /** Item ativo publico. */
+  useSecondary(game) { playerUseSecondary(this, game); }
+
   /** Interacao com E: baús, cafeteira, elevador, eventos. */
   interact(game) {
     const target = game.findInteractable(this.x, this.y);

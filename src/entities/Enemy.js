@@ -12,15 +12,17 @@
  *   (perseguir, flanquear, manter distancia)
  */
 import { Entity } from './Entity.js';
+import { STATE } from './EnemyState.js';
+import {
+  pickCombatState, doIdle, doPatrol, doAlert, doChase, doTelegraph, doAttack,
+  doRetreat, doSupport, doSnipe, doHurt, applyMovement, performAttack,
+} from './EnemyAI.js';
 import { ENEMY, TILE, TUNING } from '../data/constants.js';
 import { dist, hasLOS, moveWithTiles, lerp } from '../core/Physics.js';
 import { ENEMIES } from '../data/enemies.js';
 
-export const STATE = {
-  IDLE: 'IDLE', PATROL: 'PATROL', ALERT: 'ALERT', CHASE: 'CHASE',
-  TELEGRAPH: 'TELEGRAPH', ATTACK: 'ATTACK', RETREAT: 'RETREAT',
-  HURT: 'HURT', DEAD: 'DEAD', WANDER: 'WANDER', SUPPORT: 'SUPPORT', SNIPE: 'SNIPE',
-};
+// reexporta para quem importa { STATE } de Enemy.js (subclasses, testes)
+export { STATE };
 
 export class Enemy extends Entity {
   /**
@@ -69,6 +71,9 @@ export class Enemy extends Entity {
     this.facing = 1;
     this.wanderDir = { x: 0, y: 0 };
     this.wanderTimer = 0;
+    this.patrolTimer = 0;
+    this.telegraphPlayed = false;
+    this.hitPlayer = false;
     this.attackDone = false;
     this.attackAngle = 0;
     this.scale = def.scale || 1;
@@ -76,6 +81,8 @@ export class Enemy extends Entity {
     this.spriteKeyIdle = `enemy:${def.sprite}:idle`;
     this.spriteFrame = 0;
     this.executableGlow = 0;
+    this.slowTimer = 0;
+    this.contactDash = 0;
   }
 
   get animKey() { return `enemy:${this.spriteId}:${this.animAnim}`; }
@@ -111,45 +118,49 @@ export class Enemy extends Entity {
     }
     const d = dist(this, player);
 
-    // separacao suave entre inimigos (empurrao)
+    // timers da FSM: tempo no estado atual, recarga de ataque e lentidao
+    this.stateTimer += dt;
+    if (this.cooldownTimer > 0) this.cooldownTimer -= dt;
+    if (this.slowTimer > 0) this.slowTimer -= dt;
+    if (this.contactDash > 0) this.contactDash -= dt;
     this.pathTimer -= dt;
 
     switch (this.state) {
       case STATE.IDLE:
-        this.doIdle(dt, game, d);
+        doIdle(this, dt, game, d);
         break;
       case STATE.WANDER:
       case STATE.PATROL:
-        this.doPatrol(dt, game, d);
+        doPatrol(this, dt, game, d);
         break;
       case STATE.ALERT:
-        this.doAlert(dt, game, d);
+        doAlert(this, dt, game, d);
         break;
       case STATE.CHASE:
-        this.doChase(dt, game, d);
+        doChase(this, dt, game, d);
         break;
       case STATE.TELEGRAPH:
-        this.doTelegraph(dt, game, d);
+        doTelegraph(this, dt, game, d);
         break;
       case STATE.ATTACK:
-        this.doAttack(dt, game, d);
+        doAttack(this, dt, game, d);
         break;
       case STATE.RETREAT:
-        this.doRetreat(dt, game, d);
+        doRetreat(this, dt, game, d);
         break;
       case STATE.SUPPORT:
-        this.doSupport(dt, game, d);
+        doSupport(this, dt, game, d);
         break;
       case STATE.SNIPE:
-        this.doSnipe(dt, game, d);
+        doSnipe(this, dt, game, d);
         break;
       case STATE.HURT:
-        this.doHurt(dt, game, d);
+        doHurt(this, dt, game, d);
         break;
       case STATE.DEAD:
         break;
     }
-    this.applyMovement(dt, game);
+    applyMovement(this, dt, game);
   }
 
   setState(s) {
@@ -166,6 +177,36 @@ export class Enemy extends Entity {
     if (this.role === 'keepDistance') return p + 26;
     if (this.role === 'flank') return p + 10;
     return p;
+  }
+
+  /** Chamado pelo Combat quando a vida zera: morte limpa, sem estados presos. */
+  onDeath() {
+    this.state = STATE.DEAD;
+    this.dead = true;
+    this.vx = 0; this.vy = 0;
+    this.executable = false;
+    this.posture = 0;
+  }
+
+  /** Gancho pos-dano (subclasses: formulario se divide, burocrata se blinda). */
+  onHit(dmg, opts) {
+    this.state = STATE.HURT;
+    this.stateTimer = 0;
+    this.hitCount++;
+    this.executable = false;
+    this.posture = Math.max(0, this.posture - 4);
+    this.setAnim('hurt');
+  }
+
+  /**
+   * Divide o grupo em papeis quando ha 3+ inimigos vivos na sala:
+   * perseguir, flanquear e manter distancia. Deixa o combate menos "formiguinha".
+   */
+  assignRole(index, total) {
+    if (total < 3) { this.role = 'pursue'; return; }
+    if (index % 3 === 0) this.role = 'pursue';
+    else if (index % 3 === 1) this.role = 'flank';
+    else this.role = 'keepDistance';
   }
 
   draw(ctx, sprites, game) {
@@ -223,13 +264,6 @@ export class Enemy extends Entity {
       }
     }
   }
-}
-
-/** Escolhe o estado de combate conforme o arquetipo. */
-function pickCombatState(enemy) {
-  if (enemy.arch === 'support') return STATE.SUPPORT;
-  if (enemy.arch === 'sniper') return STATE.SNIPE;
-  return STATE.CHASE;
 }
 
 export { ENEMIES };

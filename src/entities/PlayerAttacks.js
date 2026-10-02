@@ -53,18 +53,18 @@ export function playerUseSecondary(player, game) {
     case 'melee': {
       const hitX = player.x + Math.cos(ang) * p.length * 0.5;
       const hitY = player.y + Math.sin(ang) * p.length * 0.5;
-      game.meleeSwing(this, hitX, hitY, p.length, p.arc, p.dmg, ang, p.knockback);
+      game.meleeSwing(player, hitX, hitY, p.length, p.arc, p.dmg, ang, p.knockback);
       game.fx.slash(player.x, player.y, ang, p.length, '#ffffff');
       game.audio.sfx('staple');
       break;
     }
     case 'beam': {
-      game.beamAttack(this, ang, p.length, p.width, p.dmg);
+      game.beamAttack(player, ang, p.length, p.width, p.dmg);
       game.audio.sfx('print');
       break;
     }
     case 'chain': {
-      game.chainAttack(this, p.range, p.jumps, p.dmg, p.stun, ang);
+      game.chainAttack(player, p.range, p.jumps, p.dmg, p.stun, ang);
       game.audio.sfx('cable');
       break;
     }
