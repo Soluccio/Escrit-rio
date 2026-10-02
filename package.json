@@ -1,0 +1,16 @@
+{
+  "name": "pilha-de-papel",
+  "version": "1.0.0",
+  "description": "Roguelike corporativo top-down em HTML5 Canvas, zero dependencias.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node tools/server.mjs",
+    "dev": "node tools/server.mjs 5173",
+    "test": "node --test tests/*.test.js",
+    "shot": "node tools/screenshot.mjs",
+    "smoke": "node tools/smoke.mjs"
+  },
+  "keywords": ["roguelike", "canvas", "pixel-art", "game"],
+  "license": "MIT"
+}
