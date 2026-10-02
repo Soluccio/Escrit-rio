@@ -48,7 +48,8 @@ export class Dialogue {
     const wrapW = VIEW_W - 40;
     const lines = this.font.measure(text, 1) > wrapW ? 2 : 1;
     const boxH = 12 + lines * 9;
-    const y = 6;
+    // abaixo da linha do HUD (coracoes/minimapa) para nao cobrir a interface
+    const y = 30;
     ctx.fillStyle = '#0b0b14dd';
     ctx.fillRect(6, y, VIEW_W - 12, boxH);
     ctx.strokeStyle = '#ffcf4d';
