@@ -142,6 +142,51 @@ for (const floorN of [2, 4, 6]) {
   save(game.canvas, path.join(outDir, 'cena-bencaos.png'), 2);
 }
 
+
+// ------------------------------------------------- cena 9: mira (twin-stick)
+/**
+ * Prova visual do bug da mira: o player ANDA PARA A ESQUERDA (sprite virado
+ * para a esquerda) enquanto o cursor esta no canto direito da tela. Os 3 clipes
+ * precisam voar para a DIREITA — a mira e do mouse, nao do movimento.
+ */
+{
+  const { game, input } = createHeadlessGame({ seed: 909 });
+  startRun(game, 909, 'max');
+  const room = game.floor.list.find(r => r.type === 'combat');
+  room.cleared = true;                    // sem premio de carta no print
+  room.props.length = 0;                  // pista livre: nenhum clipe bate em movel
+  game.director.enterRoom(room, null, true);
+  room.entities.length = 0;
+  room.props.length = 0;
+  room.cleared = true;
+  game.pickups.length = 0;                // sem texto de pickup ("VIDA CHEIA") no print
+  game.fx.clear();
+  const p = game.player;
+  // sem inimigos na sala nao ha dano; nao usar invuln aqui, porque o player
+  // pisca quando esta invulneravel e o sprite sumiria do print
+  p.invuln = 0;
+  p.stats.maxHp = 8; p.maxHp = 8; p.hp = 8;
+
+  const alvoX = 480 - 40, alvoY = 135;    // cursor no canto direito da tela
+  input.setMouse(alvoX, alvoY);
+  input.move.x = -1; input.move.y = 0;    // andando para a ESQUERDA
+  runFrames(game, 25);                    // deixa o sprite virar para a esquerda
+
+  // dispara 3 clipes seguidos, todos na direcao do cursor
+  for (let i = 0; i < 3; i++) {
+    p.fireCooldown = 0;
+    p.fire(game);
+    runFrames(game, 5);                   // espaca os tiros para os 3 aparecerem
+  }
+  const projeteis = game.projectiles.activeList.filter(x => x.from === 'player');
+  save(game.canvas, path.join(outDir, 'cena-aiming.png'), 2);
+  console.log(`  mira: sprite facing=${p.facing}  aimAngle=${p.aimAngle.toFixed(3)} rad  ` +
+    `clipes=${projeteis.length}  (todos vx>0: ${projeteis.every(x => x.vx > 0)})`);
+  if (!(projeteis.length >= 3 && projeteis.every(x => x.vx > 0))) errorsAll.push('cena-aiming: clipes nao seguiram o cursor');
+  if (p.facing !== -1) errorsAll.push('cena-aiming: sprite nao ficou virado para a esquerda');
+  errorsAll.push(...runFrames(game, 30).map(e => 'aiming: ' + e.error.message));
+}
+
 if (errorsAll.length) {
   console.error('erros durante as capturas:');
   for (const e of errorsAll.slice(0, 8)) console.error('  ' + e);

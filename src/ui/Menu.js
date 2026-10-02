@@ -7,6 +7,7 @@ import { VIEW_W, VIEW_H, RARITY_COLOR } from '../data/constants.js';
 import { BLESSINGS } from '../data/blessings.js';
 import { CHARACTERS } from '../data/characters.js';
 import { drawPlayerPortrait } from '../sprites/drawPlayer.js';
+import { TOUCH_PREF_LABEL } from './TouchControls.js';
 
 export class Menu {
   constructor(font, sprites) {
@@ -23,7 +24,9 @@ export class Menu {
     if (this.mode === 'main') {
       const opts = ['NOVO JOGO'];
       if (this.hasRun) opts.push('CONTINUAR');
-      opts.push('BENCAS', 'ESTAGIARIOS', 'SOM: ' + (this.muted ? 'DESLIGADO' : 'LIGADO'));
+      opts.push('BENCAS', 'ESTAGIARIOS',
+        'CONTROLES: ' + TOUCH_PREF_LABEL[this.controlsPref || 'auto'],
+        'SOM: ' + (this.muted ? 'DESLIGADO' : 'LIGADO'));
       return opts;
     }
     if (this.mode === 'chars') return CHARACTERS.map(c => c.name);
@@ -35,6 +38,7 @@ export class Menu {
     this.index = 0;
     this.hasRun = !!game.loadRun();
     this.muted = game.save.data.muted;
+    this.controlsPref = game.touch ? game.touch.pref : 'auto';
   }
 
   update(dt, game, input) {
@@ -43,6 +47,11 @@ export class Menu {
       const opts = this.options;
       if (input.pressed('up')) { this.index = (this.index - 1 + opts.length) % opts.length; game.audio.ui(); }
       if (input.pressed('down')) { this.index = (this.index + 1) % opts.length; game.audio.ui(); }
+      // setas laterais trocam o valor da opcao de controles
+      if (opts[this.index] && opts[this.index].startsWith('CONTROLES')) {
+        if (input.pressed('left')) this.cycleControls(game, -1);
+        if (input.pressed('right')) this.cycleControls(game, 1);
+      }
       if (input.pressed('confirm') || input.pressed('interact')) this.select(game);
     } else {
       if (input.pressed('up')) this.scroll = Math.max(0, this.scroll - 1);
@@ -53,9 +62,22 @@ export class Menu {
     }
   }
 
+  /** Alterna AUTO -> TOUCH -> TECLADO e persiste a preferencia. */
+  cycleControls(game, step = 1) {
+    if (!game.touch) return;
+    const pref = step > 0 ? game.touch.cyclePref(1) : game.touch.cyclePref(-1);
+    this.controlsPref = pref;
+    this.message = 'CONTROLES: ' + TOUCH_PREF_LABEL[pref];
+    game.audio.ui();
+  }
+
   select(game) {
     game.audio.ui();
     const opts = this.options;
+    if (opts[this.index] && opts[this.index].startsWith('CONTROLES')) {
+      this.cycleControls(game, 1);
+      return;
+    }
     if (this.mode === 'chars') {
       const ch = CHARACTERS[this.index];
       const unlocked = game.save.data.unlockedChars.includes(ch.id);

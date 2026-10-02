@@ -9,8 +9,12 @@ export const VIEW_H = 270;   // altura do backbuffer
 export const TILE = 16;      // tamanho do tile em pixels de mundo
 
 // Tamanho das salas em tiles (interior + borda de parede de 1 tile).
-export const ROOM_COLS = 40, ROOM_ROWS = 30;      // combate: 608x448 px de mundo
-export const BOSS_COLS = 46, BOSS_ROWS = 32;      // arena de boss: 736x512
+// Salas de combate 28x16 tiles = 448x256 px de mundo; com o viewport de 480x270
+// a zoom 1.4 (343x193 px visiveis) o player ve ~77% da largura e ~75% da altura
+// da sala: quase o mapa inteiro, com um scroll leve.
+export const ROOM_COLS = 28, ROOM_ROWS = 16;
+// Arenas de chefe 32x18 tiles = 512x288 px (margem extra para o combate).
+export const BOSS_COLS = 32, BOSS_ROWS = 18;
 export const GRID = 9;                            // grid 9x9 de salas por andar
 
 // ---------------------------------------------------------------- tiles
@@ -42,7 +46,10 @@ export const TUNING = {
 
 export const PLAYER = {
   radius: 7, w: 12, h: 14,
-  speed: 92, accel: 760, friction: 900,
+  // Movimento: resposta "colada" no input. Referencia: speed 92 px/s, entao a
+  // aceleracao e ~17x a velocidade (chega a 85% da maxima em ~0.05s) e a
+  // friccao e 1.2x a aceleracao (para em ~0.05s ao soltar a tecla).
+  speed: 92, accel: 1600, friction: 1900, turnBoost: 1.6,
   maxHp: 3, startCoins: 0,
   dashSpeed: 330, dashTime: 0.18, dashInvuln: 0.30, dashCooldown: 0.8,
   dashGhosts: 4,            // rastro de sprites fantasmas
@@ -70,11 +77,24 @@ export const ENEMY = {
 
 // ---------------------------------------------------------------- boss
 export const BOSS = {
-  zoom: 0.85,               // zoom out na arena de boss
+  zoom: 1.15,               // zoom de combate na arena de boss (ver CAMERA)
   phaseThresholds: [0.5],   // mini-bosses trocam de fase em 50%
   dialogueTime: 3.2,
   furyThreshold: 0.2,       // ataque especial de furia abaixo de 20%
   deathSlowmo: 3.0,
+};
+
+// ---------------------------------------------------------------- camera
+/**
+ * Zoom e suavizacao da camera. Salas de combate usam zoom 1.4 (tudo fica ~40%
+ * maior na tela) e as arenas de chefe 1.15 (abre um pouco para o combate).
+ */
+export const CAMERA = {
+  zoom: 1.4,                // salas normais
+  zoomBoss: 1.15,           // arenas de mini-chefe e do CEO
+  lerp: 0.15,               // suavizacao do follow
+  deadzone: { w: 34, h: 22 },
+  lookahead: 14,            // deslocamento na direcao da mira
 };
 
 // ---------------------------------------------------------------- tema por andar

@@ -10,7 +10,7 @@
 import { PAL } from './Palette.js';
 import { makeCanvas, ctx2d, outline } from './pxutil.js';
 import { drawPlayer, PLAYER_ANIMS, PLAYER_PALETTE_TINT } from './drawPlayer.js';
-import { drawEnemy, ENEMY_ANIMS } from './drawEnemies.js';
+import { drawEnemy, ENEMY_ANIMS, ENEMY_ART } from './drawEnemies.js';
 import { drawBoss, BOSS_ANIMS } from './drawBosses.js';
 import { drawItem, ITEM_ANIMS } from './drawItems.js';
 import { drawProp, PROP_ANIMS } from './drawProps.js';
@@ -39,11 +39,12 @@ export class SpriteFactory {
           drawPlayer(ctx, f, anim, { flip: false, ...(tint || {}) }), def.dur);
       }
     }
-    // inimigos
+    // inimigos — arte ampliada 1.5x (16->24, 24->36) para ficarem visiveis
     for (const [kind, anims] of Object.entries(ENEMY_ANIMS)) {
-      const size = kind === 'burocrata' ? 24 : 16;
+      const base = kind === 'burocrata' ? ENEMY_ART.big : ENEMY_ART.small;
       for (const [anim, [frames, dur]] of Object.entries(anims)) {
-        this._sheet(`enemy:${kind}:${anim}`, size, size, frames, (ctx, f) => drawEnemy(ctx, kind, f, anim), dur);
+        this._sheetScaled(`enemy:${kind}:${anim}`, base, base, ENEMY_ART.scale, frames,
+          (ctx, f) => drawEnemy(ctx, kind, f, anim), dur);
       }
     }
     // bosses
@@ -87,6 +88,22 @@ export class SpriteFactory {
     const c = makeCanvas(w, h, this.canvasFactory);
     c.width = w; c.height = h;
     return c;
+  }
+
+  /**
+   * Como _sheet, mas desenha a arte no tamanho base e amplia por `scale` com
+   * vizinho-mais-proximo (drawImage sem suavizacao): mantem o pixel art nitido
+   * mesmo com fator fracionario (1.5x).
+   */
+  _sheetScaled(key, baseW, baseH, scale, frames, painter, dur) {
+    const w = Math.round(baseW * scale), h = Math.round(baseH * scale);
+    this._sheet(key, w, h, frames, (ctx, f) => {
+      const tmp = this._mk(baseW, baseH);
+      const tctx = ctx2d(tmp);
+      painter(tctx, f);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tmp, 0, 0, baseW, baseH, 0, 0, w, h);
+    }, dur);
   }
 
   _sheet(key, w, h, frames, painter, dur) {

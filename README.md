@@ -30,11 +30,16 @@ npx vite                        # opcional, o projeto nao depende disso
 
 ### Controles
 
+> **Controles de toque:** o overlay so aparece em celular/tablet de verdade
+> (`pointer: coarse` **e** `hover: none` **e** userAgent movel). No menu, a opcao
+> **CONTROLES: AUTO / TOUCH / TECLADO** força o modo desejado (salvo em
+> `localStorage`, chave `touchPref`).
+
 | Acao | Teclado / Mouse | Toque |
 |------|-----------------|-------|
 | Mover | `WASD` ou setas | joystick esquerdo |
 | Mirar | mouse | joystick direito (auto-mira se soltar) |
-| Atirar clipes | clique esquerdo (segure) | botao A |
+| Atirar clipes | clique esquerdo (segure) — **atira na direcao do cursor** | botao A |
 | Item ativo | `Espaco` / botao direito | botao B |
 | Dash (0,3 s invulneravel) | `Shift` | botao DASH |
 | Interagir / **executar** | `E` | botao E |
@@ -95,6 +100,7 @@ Nenhum arquivo passa de 400 linhas; todo sistema esta comentado em portugues e
 npm test                                  # 57 testes (node:test), 100% headless
 node tools/smoke.mjs 6000 4242            # bot joga 100 s; falha se houver erro
 node tools/smoke.mjs 26000 4242 --fast    # run inteira ate o CEO (player buffado)
+node tools/playtest.mjs                   # capturas de validacao (playtest 1)
 node tools/duel.mjs 8 1                   # medidor de dificuldade por andar
 node tools/duel.mjs 4 5 --build=mid       # curva de dificuldade (ver docs/BALANCE.md)
 node tools/screenshot.mjs                 # gera shots/cena-*.png (960x540)
@@ -124,6 +130,16 @@ permite testar gameplay — e nao so funcoes puras — no CI, sem navegador.
 Os numeros de dificuldade (dano por sala, mortes, escala por andar, velocidades
 de cada inimigo, vida dos chefes) estao medidos e documentados em
 [`docs/BALANCE.md`](docs/BALANCE.md), gerados por um bot que joga de verdade.
+
+## Correcoes do playtest 1
+
+| Bug | Correcao |
+|-----|----------|
+| Movimentacao com delay | `accel` 760 -> **1600 px/s²** (17x a velocidade maxima), `friction` 900 -> **1900**, `turnBoost` 1.6 na inversao e o "coyote" deixou de empurrar o player depois de soltar a tecla. Teste: `tests/movement.test.js`. |
+| Salas grandes demais | Salas de combate 40x30 -> **28x16 tiles** (448x256 px), arenas 46x32 -> **32x18** (512x288) e zoom da camera **1.4** (chefe: **1.15**). Agora ve-se ~77% da largura e ~75% da altura da sala. |
+| Inimigos pequenos e passivos | Sprites 16x16 -> **24x24** (burocrata **36x36**), hitbox 20/28, visao 220-300 px, recarga 0.8-1.0s (rusher) e 1.2-1.6s (ranged), e no maximo 1 inimigo de guarda a cada 3+. Testes: `tests/enemies.test.js`. |
+| Botoes touch no PC | Deteccao exige as tres condicoes (ponteiro grosso + sem hover + UA movel) e ha o toggle **CONTROLES** no menu salvo em `localStorage`. Testes: `tests/touch.test.js`. |
+| Mira do mouse nao funcionava | `Input.aim()` so dava a mira ao mouse depois de um **clique** (`lastInputDevice` nunca mudava no `mousemove`), entao quem andava de WASD continuava atirando na direcao do movimento. Agora o mouse assume a mira ao **mover** (o `aimAngle` vem do cursor com a conversao `/cam.zoom`), o sprite vira para o lado do movimento (feedback de recuo) e o tiro segue sempre o cursor. Cursor `crosshair` no canvas. Testes: `tests/aim.test.mjs`. |
 
 ## Progressao salva
 

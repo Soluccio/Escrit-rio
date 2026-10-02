@@ -208,13 +208,14 @@ export class Player extends Entity {
       this.slowTimer -= dt;
       speedMult = this.slowFactor || 0.5;
     }
+    // Coyote de input: guarda apenas a ULTIMA direcao (usada para escolher a
+    // direcao do dash). Antes isso tambem empurrava o movimento, o que fazia o
+    // player continuar acelerando por 0.12s depois de soltar a tecla ("gelo").
     if (axis.len > 0.1) {
       this.lastMoveDir = { x: axis.x, y: axis.y };
       this.coyote = 0.12;
     } else if (this.coyote > 0) {
       this.coyote -= dt;
-      axis.x = this.lastMoveDir.x * 0.6; axis.y = this.lastMoveDir.y * 0.6;
-      axis.len = 0.6;
     }
 
     if (this.dashing) {
@@ -231,17 +232,23 @@ export class Player extends Entity {
       }
       if (this.dashTime <= 0) this.dashing = false;
     } else {
-      // aceleracao + atrito + coyote
-      const accel = (this.stats.accel * (axis.len || 0)) * speedMult;
+      // Aceleracao + atrito. Com input, acelera direto na direcao pedida; virar
+      // contra a velocidade atual usa turnBoost (resposta de troca de direcao).
       if (axis.len > 0.05) {
+        const turning = (this.vx * axis.x + this.vy * axis.y) < -0.1;
+        const accel = this.stats.accel * (turning ? PLAYER.turnBoost : 1)
+          * (axis.len || 1) * speedMult;
         this.vx += axis.x * accel * dt;
         this.vy += axis.y * accel * dt;
       } else {
+        // Sem input: freia seco (friccao 1.2x a aceleracao) e zera de vez
+        // quando a velocidade e desprezivel, para nao sobrar "escorrego".
         const sp = Math.hypot(this.vx, this.vy);
         if (sp > 0) {
           const drop = Math.min(sp, this.stats.friction * dt);
           this.vx -= (this.vx / sp) * drop;
           this.vy -= (this.vy / sp) * drop;
+          if (Math.hypot(this.vx, this.vy) < 1) { this.vx = 0; this.vy = 0; }
         }
       }
       const maxSp = this.stats.speed * speedMult;
@@ -256,9 +263,19 @@ export class Player extends Entity {
       if (moved.y) this.vy *= -0.1;
     }
 
-    // espelhamento: olha para a mira sempre
-    const aimX = Math.cos(this.aimAngle);
-    this.facing = aimX < -0.05 ? -1 : aimX > 0.05 ? 1 : this.facing;
+    // Espelhamento do sprite (flip horizontal esquerda/direita):
+    //  - ANDANDO: o sprite olha para onde o corpo vai (parece natural e deixa a
+    //    leitura de "estou recuando atirando" clara, com o sprite virado ao
+    //    contrario dos tiros);
+    //  - PARADO: olha para o cursor do mouse.
+    // O sentido do TIRO nunca vem daqui: e sempre `aimAngle` (mira do mouse).
+    if (axis.len > 0.15 && Math.abs(axis.x) > 0.2) {
+      this.facing = axis.x < 0 ? -1 : 1;
+    } else {
+      const aimX = Math.cos(this.aimAngle);
+      if (aimX < -0.05) this.facing = -1;
+      else if (aimX > 0.05) this.facing = 1;
+    }
 
     // ---------------------------------------------------------- acoes
     if (input.pressed('dash') || (input.pressed('fire') && input.down('dash'))) {

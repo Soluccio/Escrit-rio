@@ -13,7 +13,9 @@
     -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none;
   }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  /* twin-stick: o cursor mostra onde o tiro vai (mira independente do WASD) */
   canvas#game {
+    cursor: crosshair;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     background: #1a1a2e;
@@ -34,7 +36,8 @@
   #touch .btn.dash { right: 30px; bottom: 152px; width: 56px; height: 56px; }
   #touch .btn.act  { right: 152px; bottom: 22px; width: 56px; height: 56px; }
   #touch .btn.pause { right: 12px; top: 12px; width: 40px; height: 40px; }
-  #touch .hidden { display: none; }
+  /* esconde tanto a raiz quanto os filhos (o overlay de toque no PC) */
+  #touch.hidden, #touch .hidden { display: none; }
 </style>
 </head>
 <body>

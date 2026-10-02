@@ -3,7 +3,7 @@
  * escalada pelo andar), chefes, projeteis, hazards e pickups de drop.
  * Extraido do Game.js para manter os arquivos abaixo de 400 linhas.
  */
-import { floorScale } from '../data/constants.js';
+import { floorScale, CAMERA } from '../data/constants.js';
 import { scaleEnemy } from '../data/enemies.js';
 import { ENEMY_CLASSES } from '../entities/enemies/index.js';
 import { BOSS_CLASSES } from '../entities/bosses/index.js';
@@ -55,7 +55,7 @@ export function spawnBoss(game, type, player) {
   game.room.boss = boss;
   game.boss = boss;
   boss.start(game);
-  game.camera.targetZoom = 0.85;
+  game.camera.targetZoom = CAMERA.zoomBoss;
   // props destrutiveis da arena aguentam mais pancada
   for (const prop of game.room.props) prop.hp *= 1.4;
   return boss;

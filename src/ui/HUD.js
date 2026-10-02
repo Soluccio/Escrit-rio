@@ -129,7 +129,8 @@ export class HUD {
   _bossBar(ctx, game) {
     const boss = game.boss;
     if (!boss || boss.dead) return;
-    const w = VIEW_W - 80, h = 6, x = 40, y = VIEW_H - 30;
+    // acima da caixa do item ativo (que ocupa o canto inferior esquerdo)
+    const w = VIEW_W - 80, h = 6, x = 40, y = VIEW_H - 44;
     ctx.fillStyle = '#000000aa';
     ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
     ctx.fillStyle = '#2b2b3d';
@@ -146,6 +147,9 @@ export class HUD {
       ctx.fillRect(mx, y - 1, 1, h + 2);
     }
     const label = boss.def.name + (boss.fury ? '  [FURIA]' : '');
+    const labelW = this.font.measure(label, 1);
+    ctx.fillStyle = '#000000aa';
+    ctx.fillRect(VIEW_W / 2 - labelW / 2 - 3, y - 11, labelW + 6, 10);
     this.font.draw(ctx, label, VIEW_W / 2, y - 9, boss.def.color, 1, 'center', '#000000');
     // postura
     if (boss.posture > 0) {

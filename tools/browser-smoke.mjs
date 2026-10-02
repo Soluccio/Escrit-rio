@@ -54,7 +54,10 @@ if (game.touch) {
     dom.flushRAF(3);
     sticks[0].dispatch('touchend', { changedTouches: [{ identifier: 1, clientX: 90, clientY: 620 }] });
   }
-  console.log('> controles de toque:', dom.get('touch').children.length, 'elementos');
+  const touchRoot = dom.get('touch');
+  const touchHidden = !!touchRoot && touchRoot.classList.contains('hidden');
+  console.log('> controles de toque:', touchRoot.children.length, 'elementos | escondidos no PC:', touchHidden);
+  if (!touchHidden) errors.push('overlay de toque visivel num PC sem touch (BUG 4 do playtest)');
 }
 
 // ---- dispara SFX e musica de verdade (com o AudioContext falso)

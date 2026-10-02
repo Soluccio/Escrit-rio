@@ -1,6 +1,9 @@
 /**
  * drawEnemies.js — os 10 inimigos comuns, cada um com sua animacao.
- * Tamanhos: 16x16 (maioria) e 24x24 (burocrata).
+ *
+ * A arte e desenhada em coordenadas de 16x16 (burocrata 24x24) e o
+ * SpriteFactory amplia em ENEMY_ART.scale (1.5x) ao gerar o sprite final, com
+ * vizinho-mais-proximo: os bichos ficam 24x24 / 36x36 sem perder o pixel art.
  * Todo bicho tem hurt de 1 frame (flash branco e aplicado no render).
  */
 import { PAL, shade } from './Palette.js';
@@ -18,6 +21,13 @@ export const ENEMY_ANIMS = {
   cafe:        { idle: [4, 0.3],  attack: [2, 0.15], hurt: [1, 0.2] },
   cabo:        { idle: [2, 0.35], wrap: [3, 0.14], hurt: [1, 0.2] },
   fantasma:    { idle: [2, 0.3],  fade: [3, 0.16], attack: [2, 0.12], hurt: [1, 0.2] },
+};
+
+/** Tamanhos da arte e fator de ampliacao usado na pre-renderizacao. */
+export const ENEMY_ART = {
+  small: 16,      // canvas da arte da maioria
+  big: 24,        // canvas da arte do burocrata
+  scale: 1.5,     // 16 -> 24, 24 -> 36 (ver SpriteFactory)
 };
 
 const T = (ctx, x, y, w, h, c) => rect(ctx, x | 0, y | 0, w | 0, h | 0, c);
