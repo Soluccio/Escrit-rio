@@ -3,7 +3,7 @@
  * recompensas (bencaos, chave, itens), eventos de sala e o desfecho da run.
  * O Game cuida do loop e do render; o Director cuida do que acontece quando.
  */
-import { FLOORS, TILE, floorScale, RARITY_COLOR, S } from '../data/constants.js';
+import { FLOORS, TILE, floorScale, RARITY_COLOR, S, CAMERA } from '../data/constants.js';
 import { RNG } from './RNG.js';
 import { generateFloor } from '../world/RoomGenerator.js';
 import { Interactable } from '../entities/Interactable.js';
@@ -146,7 +146,7 @@ export class Director {
     g.camera.setBounds(room.w, room.h);
     if (instant) g.camera.snap(p.x, p.y);
     else g.camera.snap(p.x, p.y);
-    g.camera.targetZoom = 1;
+    g.camera.targetZoom = (room.type === 'miniboss' || room.type === 'boss') ? CAMERA.zoomBoss : CAMERA.zoom;
     p.invuln = Math.max(p.invuln, 0.5);
     room.start(g, p);
     g.minimap.updateReveal(g.floor, room, p.stats.revealAdjacent);

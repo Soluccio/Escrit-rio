@@ -12,7 +12,7 @@
  * Cada chefe implementa seus ataques como metodos attack_<nome>(game, t).
  */
 import { Entity } from '../Entity.js';
-import { BOSS } from '../../data/constants.js';
+import { BOSS, CAMERA } from '../../data/constants.js';
 import { lerp } from '../../core/Physics.js';
 import { DEATH_LINES } from '../../data/bosses.js';
 
@@ -78,7 +78,7 @@ export class Boss extends Entity {
   start(game) {
     game.audio.music(this.def.music);
     game.audio.sfx(this.def.mini ? 'bossHorn' : 'ceoRoar');
-    game.camera.targetZoom = BOSS.zoom;
+    game.camera.targetZoom = CAMERA.zoomBoss;
     game.camera.addShake(BOSS.shakeBoss || 5);
     game.dialogue.show(this.def.name, this.def.intro, BOSS.dialogueTime);
     game.fx.banner(this.def.name, this.def.color, 2.6, 22);

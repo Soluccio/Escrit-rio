@@ -14,7 +14,7 @@ export class FakeInput {
   constructor() {
     this.move = { x: 0, y: 0 };
     this.aimDir = { x: 1, y: 0 };
-    this.mouse = { x: 240, y: 135, down: false, justDown: false };
+    this.mouse = { x: 240, y: 135, down: false, justDown: false, hasMoved: false };
     this.keys = new Set();
     this.held = new Set();
     this.just = new Set();
@@ -32,7 +32,16 @@ export class FakeInput {
     const len = Math.hypot(x, y);
     return len > 1 ? { x: x / len, y: y / len, len: 1 } : { x, y, len };
   }
-  aim() { return { x: this.aimDir.x, y: this.aimDir.y, source: 'pad' }; }
+  /** Simula o mouse: posicao em coordenadas de TELA (480x270). */
+  setMouse(x, y) { this.mouse.x = x; this.mouse.y = y; this.mouse.hasMoved = true; }
+  clearMouse() { this.mouse.hasMoved = false; this.mouse.down = false; }
+  /** Mouse manda quando ja foi usado; senao cai no aimDir (gamepad/toque). */
+  aim() {
+    if (this.mouse.hasMoved || this.mouse.down) {
+      return { x: this.mouse.x, y: this.mouse.y, source: 'mouse' };
+    }
+    return { x: this.aimDir.x, y: this.aimDir.y, source: 'pad' };
+  }
   endFrame() { this.just.clear(); this.mouse.justDown = false; this.anyKey = false; this.padJust.clear(); }
 }
 
@@ -61,6 +70,11 @@ export function createHeadlessGame(opts = {}) {
     touch: false,
     seed: opts.seed ?? 4242,
     canvasFactory: (w, h) => new SoftCanvas(w, h),
+    // toque: o overlay de DOM nao existe headless, mas a preferencia e a
+    // deteccao sao injetaveis para os testes (touch.test.js)
+    touchStorage: opts.touchStorage,
+    isTouchDevice: opts.isTouchDevice,
+    touchPref: opts.touchPref,
   });
   if (opts.character) {
     game.save.data.unlockedChars = [...new Set([...game.save.data.unlockedChars, opts.character])];

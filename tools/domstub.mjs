@@ -69,6 +69,8 @@ export function installDOM() {
     body, head,
     documentElement: new El('html'),
     getElementById: get,
+    // PC tipico: ponteiro fino + hover -> o overlay de toque deve ficar escondido
+    matchMedia: q => ({ matches: false, media: q, addListener() {}, removeListener() {} }),
     createElement: tag => new El(tag),
     addEventListener: body.addEventListener.bind(body),
     removeEventListener: body.removeEventListener.bind(body),

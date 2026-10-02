@@ -3,7 +3,7 @@
  * (MENU, PLAY, PAUSE, BLESSING, SHOP, TRANSITION, GAMEOVER, WIN), sistema de
  * salas, spawn de entidades, efeitos e o render de tudo.
  */
-import { VIEW_W, VIEW_H, TUNING, S, FLOORS, floorScale, SOLID_TILES } from '../data/constants.js';
+import { VIEW_W, VIEW_H, TUNING, S, FLOORS, floorScale, SOLID_TILES, CAMERA } from '../data/constants.js';
 import { GameLoop } from './GameLoop.js';
 import { Camera } from './Camera.js';
 import { FX } from './FX.js';
@@ -63,7 +63,11 @@ export class Game {
     this.save = new Save(opts.storage);
     this.audio.setMuted(this.save.data.muted);
     this.touch = (opts.touchContainer !== null && typeof document !== 'undefined' && opts.touch !== false)
-      ? new TouchControls(opts.touchContainer || document.getElementById('touch')) : null;
+      ? new TouchControls(opts.touchContainer || document.getElementById('touch'), {
+        storage: opts.touchStorage,
+        isTouchDevice: opts.isTouchDevice,
+        pref: opts.touchPref,
+      }) : null;
     this.input = opts.input || new Input(this.canvas || { addEventListener() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: VIEW_W, height: VIEW_H }), width: VIEW_W, height: VIEW_H }, this.touch);
 
     // UI
@@ -210,7 +214,7 @@ export class Game {
       if (this.pendingVictory <= 0) this.director.startVictory();
     }
     // camera volta ao normal fora de arena de boss
-    if (room.type !== 'miniboss' && room.type !== 'boss') this.camera.targetZoom = 1;
+    if (room.type !== 'miniboss' && room.type !== 'boss') this.camera.targetZoom = CAMERA.zoom;
   }
 
   /** Inimigos com 3+ vivos na sala recebem papeis (perseguir, flanquear...). */
@@ -231,10 +235,11 @@ export class Game {
       if (e.dead || !e.isEnemy || !e.contactDamage) continue;
       const r = (e.radius || 6) + player.radius + 1;
       if (dist(e, player) < r) {
-        const dashing = e.contactDash > 0;
-        if (dashing || e.isBoss || e.def?.arch === 'swarm' || e.def?.arch === 'rusher') {
-          this.combat.hitPlayer(e, e.damage || 1, {});
-        }
+        // rushers e enxames machucam SO de encostar (mesmo entre ataques);
+        // ranged/support so causam dano no proprio ataque
+        const contact = e.contactDash > 0 || e.isBoss
+          || e.def?.arch === 'rusher' || e.def?.arch === 'swarm';
+        if (contact) this.combat.hitPlayer(e, e.damage || 1, {});
       }
       if (e.contactDash > 0) e.contactDash -= dt;
     }

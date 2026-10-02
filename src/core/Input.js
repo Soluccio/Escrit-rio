@@ -18,7 +18,10 @@ export class Input {
     this.touch = touch;
     this.keys = new Set();
     this.justKeys = new Set();
-    this.mouse = { x: 0, y: 0, down: false, justDown: false };
+    this.mouse = {
+      x: 0, y: 0, down: false, justDown: false,
+      hasMoved: false,   // true depois do primeiro movimento (a mira e dele)
+    };
     this.pad = null;
     this.padButtons = new Set();
     this.padJust = new Set();
@@ -44,11 +47,26 @@ export class Input {
 
     const toWorld = ev => {
       const r = c.getBoundingClientRect();
+      // converte px de CSS para o backbuffer (480x270), independente do tamanho
+      // que o canvas ocupa na tela
       this.mouse.x = ((ev.clientX - r.left) / r.width) * c.width;
       this.mouse.y = ((ev.clientY - r.top) / r.height) * c.height;
     };
-    c.addEventListener('mousemove', toWorld);
-    c.addEventListener('mousedown', ev => { toWorld(ev); this.mouse.down = true; this.mouse.justDown = true; this.lastInputDevice = 'mouse'; });
+    c.addEventListener('mousemove', ev => {
+      toWorld(ev);
+      // mover o mouse JA e suficiente para ele assumir a mira (antes so o
+      // clique marcava 'mouse', entao quem andava de WASD continuava mirando
+      // na direcao do movimento — era o bug do playtest)
+      this.mouse.hasMoved = true;
+      this.lastInputDevice = 'mouse';
+    });
+    c.addEventListener('mousedown', ev => {
+      toWorld(ev);
+      this.mouse.down = true;
+      this.mouse.justDown = true;
+      this.mouse.hasMoved = true;      // clicar tambem assume a mira
+      this.lastInputDevice = 'mouse';
+    });
     addEventListener('mouseup', () => { this.mouse.down = false; });
     c.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -117,16 +135,26 @@ export class Input {
     return { x, y, len: Math.min(len, 1) };
   }
 
-  /** Direcao de mira em coordenadas de TELA. */
+  /**
+   * Direcao de mira.
+   *  - toque e gamepad (stick direito) tem prioridade enquanto ativos;
+   *  - o MOUSE vence sempre que ja foi usado alguma vez (hasMoved/click): a mira
+   *    fica independente do WASD, como manda o twin-stick;
+   *  - so quem nunca tocou no mouse (jogo 100% teclado) usa a mira relativa ao
+   *    movimento como fallback;
+   *  - retorna null quando nao ha nada: o Player mantem o ultimo aimAngle.
+   * O `x/y` do mouse sao coordenadas de TELA (backbuffer 480x270); a conversao
+   * para mundo (com /zoom) acontece no Player.updateAim.
+   */
   aim() {
     if (this.touch && this.touch.aim.active) return { x: this.touch.aim.x, y: this.touch.aim.y, source: 'touch' };
     if (this.pad && this.aimStick && Math.hypot(this.aimStick.x, this.aimStick.y) > 0.3) {
       return { x: this.aimStick.x, y: this.aimStick.y, source: 'pad' };
     }
-    if (this.lastInputDevice === 'mouse' || this.mouse.down) {
+    if (this.mouse.hasMoved || this.mouse.down) {
       return { x: this.mouse.x, y: this.mouse.y, source: 'mouse' };
     }
-    // setas: mira relativa ao movimento (twin-stick de teclado)
+    // teclado puro (ninguem encostou no mouse ainda): mira relativa ao movimento
     const a = this.axis();
     if (a.len > 0.1) return { x: a.x, y: a.y, source: 'rel' };
     return null;

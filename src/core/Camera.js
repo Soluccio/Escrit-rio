@@ -1,19 +1,21 @@
 /**
  * Camera.js — segue o player com deadzone, lerp 0.15, limite nos bounds da sala,
- * zoom (0.85 nas arenas de boss), shake aplicado DEPOIS do lerp e lookahead de mira.
+ * zoom (CAMERA.zoom em salas normais, CAMERA.zoomBoss nas arenas de chefe),
+ * shake aplicado DEPOIS do lerp e lookahead de mira.
  */
 import { clamp, lerp } from './Physics.js';
+import { CAMERA } from '../data/constants.js';
 
 export class Camera {
   constructor(viewW, viewH) {
     this.vw = viewW; this.vh = viewH;
     this.x = 0; this.y = 0;
-    this.zoom = 1; this.targetZoom = 1;
+    this.zoom = CAMERA.zoom; this.targetZoom = CAMERA.zoom;
     this.shake = 0; this.shakeX = 0; this.shakeY = 0;
-    this.deadzone = { w: 34, h: 22 };
-    this.lerpAmt = 0.15;
+    this.deadzone = { ...CAMERA.deadzone };
+    this.lerpAmt = CAMERA.lerp;
     this.bounds = { x: 0, y: 0, w: 640, h: 480 };
-    this.lookahead = 14;
+    this.lookahead = CAMERA.lookahead;
     this._rng = 1;
   }
 

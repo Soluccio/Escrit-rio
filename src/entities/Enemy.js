@@ -203,10 +203,12 @@ export class Enemy extends Entity {
    * perseguir, flanquear e manter distancia. Deixa o combate menos "formiguinha".
    */
   assignRole(index, total) {
+    // 1-2 inimigos: todos vao para cima. Com 3+, no maximo UM fica de guarda
+    // (o antigo index % 3 marcava um terco do grupo como keepDistance, e o
+    // grupo inteiro ficava passivo esperando o player chegar).
     if (total < 3) { this.role = 'pursue'; return; }
-    if (index % 3 === 0) this.role = 'pursue';
-    else if (index % 3 === 1) this.role = 'flank';
-    else this.role = 'keepDistance';
+    if (index === total - 1) { this.role = 'keepDistance'; return; }
+    this.role = index % 2 === 0 ? 'pursue' : 'flank';
   }
 
   draw(ctx, sprites, game) {
